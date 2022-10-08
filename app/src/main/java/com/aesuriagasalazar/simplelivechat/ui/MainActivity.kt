@@ -16,7 +16,9 @@ import com.aesuriagasalazar.simplelivechat.ui.elements.ChatTopBar
 import com.aesuriagasalazar.simplelivechat.ui.screen.ChatScreen
 import com.aesuriagasalazar.simplelivechat.ui.theme.SimpleLiveChatTheme
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

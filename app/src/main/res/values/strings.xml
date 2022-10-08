@@ -3,4 +3,5 @@
     <string name="live_chat">Live Chat</string>
     <string name="no_message">No messages yet…</string>
     <string name="send_a_message">Send a message</string>
+    <string name="updating_name">Updating your name...</string>
 </resources>
