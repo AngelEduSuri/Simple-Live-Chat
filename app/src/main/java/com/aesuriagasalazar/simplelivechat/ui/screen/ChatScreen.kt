@@ -1,8 +1,5 @@
 package com.aesuriagasalazar.simplelivechat.ui.screen
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +26,7 @@ import com.aesuriagasalazar.simplelivechat.R
 import com.aesuriagasalazar.simplelivechat.model.Message
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatButtonSend
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatItem
+import com.aesuriagasalazar.simplelivechat.ui.elements.ChatSignMessage
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatTextField
 
 @Composable
@@ -46,14 +44,15 @@ fun ChatScreen(
         Column {
             ShowUserName(
                 userName = uiState.user.name,
-                isEditing = uiState.isUserNameEditing,
-                onStartEditing = viewModel::onStartEditUserName,
+                isEditing = uiState.isEditingUserName,
+                onStartEditing = viewModel::onEditingUserName,
                 onEditUserName = viewModel::onUserNameChanged,
                 onEditingDone = viewModel::onUpdateUserName
             )
             MessageList(
                 modifier = Modifier.weight(weight = 1f),
-                messages = uiState.chats
+                messages = uiState.chats,
+                userMessage = uiState.user.name
             )
             MessageBottom(
                 text = uiState.text,
@@ -61,29 +60,11 @@ fun ChatScreen(
                 onIconClick = viewModel::onSendMessage
             )
         }
-        if (uiState.isSendingMessage) LinearProgressIndicator()
+        if (uiState.isSendingMessage) CircularProgressIndicator()
     }
-    AnimatedVisibility(
-        visible = uiState.isSavingNameUpdated,
-        enter = slideInVertically(),
-        exit = slideOutVertically()
-    ) {
-        Card(backgroundColor = MaterialTheme.colors.secondary) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(height = 70.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.width(width = 8.dp))
-                Text(text = stringResource(R.string.updating_name), style = MaterialTheme.typography.body1)
-            }
-        }
-    }
+    ChatSignMessage(updatingUserName = uiState.isUpdatingUserName)
 
-    LaunchedEffect(key1 = !uiState.isUserNameEditing) {
+    LaunchedEffect(key1 = !uiState.isEditingUserName) {
         viewModel.checkUserState()
     }
 }
@@ -119,7 +100,11 @@ fun ShowUserName(
 }
 
 @Composable
-fun MessageList(modifier: Modifier = Modifier, messages: List<Message>) {
+fun MessageList(
+    modifier: Modifier = Modifier,
+    messages: List<Message>,
+    userMessage: String
+) {
 
     val state = rememberLazyListState()
 
@@ -127,27 +112,30 @@ fun MessageList(modifier: Modifier = Modifier, messages: List<Message>) {
         if (messages.isNotEmpty()) state.scrollToItem(index = messages.lastIndex)
     }
 
-    if (messages.isNotEmpty()) {
-        LazyColumn(
-            modifier = modifier,
-            contentPadding = PaddingValues(all = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(space = 8.dp),
-            state = state,
-        ) {
-            items(items = messages) {
-                ChatItem(message = it, isUserMessage = true)
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(all = 8.dp),
+        verticalArrangement = if (messages.isNotEmpty()) Arrangement.spacedBy(space = 8.dp) else Arrangement.Center,
+        state = state,
+    ) {
+        if (messages.isNotEmpty()) {
+            items(messages) {
+                ChatItem(message = it, isUserMessage = userMessage == it.author.name)
+            }
+        } else {
+            item {
+                BodyMessageEmpty()
             }
         }
-    } else {
-        BodyMessageEmpty(modifier = modifier)
     }
 }
 
 @Composable
 fun BodyMessageEmpty(modifier: Modifier = Modifier) {
-    Box(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Card(
             modifier = Modifier.width(width = 200.dp),
@@ -175,6 +163,8 @@ fun BodyMessageEmpty(modifier: Modifier = Modifier) {
                 )
             }
         }
+        Spacer(modifier = Modifier.height(height = 8.dp))
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }
 
