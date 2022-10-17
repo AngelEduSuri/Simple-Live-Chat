@@ -84,6 +84,9 @@ dependencies {
 
     // Accompanist
     implementation "com.google.accompanist:accompanist-systemuicontroller:0.25.1"
+
+    // Pretty Time
+    implementation 'org.ocpsoft.prettytime:prettytime:5.0.4.Final'
 }
 
 kapt {

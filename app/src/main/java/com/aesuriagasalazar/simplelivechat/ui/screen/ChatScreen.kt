@@ -1,22 +1,25 @@
 package com.aesuriagasalazar.simplelivechat.ui.screen
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -28,6 +31,7 @@ import com.aesuriagasalazar.simplelivechat.ui.elements.ChatButtonSend
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatItem
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatSignMessage
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatTextField
+import java.util.*
 
 @Composable
 fun ChatScreen(
@@ -43,18 +47,19 @@ fun ChatScreen(
     ) {
         Column {
             ShowUserName(
-                userName = uiState.user.name,
+                userName = uiState.currentName,
                 isEditing = uiState.isEditingUserName,
                 onStartEditing = viewModel::onEditingUserName,
                 onEditUserName = viewModel::onUserNameChanged,
-                onEditingDone = viewModel::onUpdateUserName
+                onEditingDone = viewModel::onUpdateUserName,
+                onCancelEditing = viewModel::onEditingUserName
             )
             MessageList(
                 modifier = Modifier.weight(weight = 1f),
                 messages = uiState.chats,
                 userMessage = uiState.user.name
             )
-            MessageBottom(
+            MessageButton(
                 text = uiState.text,
                 onTextChanged = viewModel::onMessageChanged,
                 onIconClick = viewModel::onSendMessage
@@ -76,24 +81,40 @@ fun ShowUserName(
     isEditing: Boolean,
     onStartEditing: () -> Unit,
     onEditUserName: (String) -> Unit,
-    onEditingDone: () -> Unit
+    onEditingDone: () -> Unit,
+    onCancelEditing: () -> Unit
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(all = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        if (isEditing) {
-            OutlinedTextField(value = userName, onValueChange = onEditUserName)
-            IconButton(onClick = onEditingDone) {
-                Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
-            }
-        } else {
-            Text(text = userName, style = MaterialTheme.typography.h5.copy(fontSize = 20.sp))
-            IconButton(onClick = onStartEditing) {
-                Icon(imageVector = Icons.Rounded.Edit, contentDescription = null)
+        Row(
+            modifier = modifier
+                .height(height = 70.dp)
+                .animateContentSize(
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = LinearEasing
+                    )
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (isEditing) {
+                IconButton(onClick = onCancelEditing) {
+                    Icon(imageVector = Icons.Rounded.Close, contentDescription = null)
+                }
+                OutlinedTextField(value = userName, onValueChange = onEditUserName)
+                IconButton(onClick = onEditingDone) {
+                    Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
+                }
+            } else {
+                Text(text = userName, style = MaterialTheme.typography.h5.copy(fontSize = 20.sp))
+                IconButton(onClick = onStartEditing) {
+                    Icon(imageVector = Icons.Rounded.Edit, contentDescription = null)
+                }
             }
         }
     }
@@ -107,6 +128,9 @@ fun MessageList(
 ) {
 
     val state = rememberLazyListState()
+    val dates by remember(messages.size) {
+        mutableStateOf(messages.map { it.convertToDate() })
+    }
 
     LaunchedEffect(key1 = messages.size) {
         if (messages.isNotEmpty()) state.scrollToItem(index = messages.lastIndex)
@@ -119,8 +143,12 @@ fun MessageList(
         state = state,
     ) {
         if (messages.isNotEmpty()) {
-            items(messages) {
-                ChatItem(message = it, isUserMessage = userMessage == it.author.name)
+            itemsIndexed(messages) { index, item ->
+                ChatItem(
+                    message = item,
+                    isUserMessage = userMessage == item.author.name,
+                    time = dates[index]
+                )
             }
         } else {
             item {
@@ -163,18 +191,19 @@ fun BodyMessageEmpty(modifier: Modifier = Modifier) {
                 )
             }
         }
-        Spacer(modifier = Modifier.height(height = 8.dp))
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun MessageBottom(
+fun MessageButton(
     modifier: Modifier = Modifier,
     text: String,
     onTextChanged: (String) -> Unit,
     onIconClick: () -> Unit
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -188,7 +217,10 @@ fun MessageBottom(
         )
         Spacer(modifier = Modifier.width(width = 8.dp))
         ChatButtonSend(
-            onIconClick = onIconClick,
+            onIconClick = {
+                onIconClick()
+                keyboardController?.hide()
+            },
             messageIsEmpty = text.isNotEmpty()
         )
     }

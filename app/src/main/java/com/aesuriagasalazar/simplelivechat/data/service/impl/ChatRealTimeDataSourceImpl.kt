@@ -34,40 +34,44 @@ class ChatRealTimeDataSourceImpl @Inject constructor(private val database: Datab
 
                 // Loop to message node that contains user uid that its key
                 snapshot.children.forEach { usersId ->
+                    usersId.key?.let { key ->
+                        // Get user that is the same that userId.key
+                        val userDeferred = async(Dispatchers.IO) {
+                            database.child(PATH).child("users")
+                                .child(key).get().await()?.let {
+                                    listOfUser.add(
+                                        User(
+                                            key,
+                                            it.getValue(String::class.java) ?: ""
+                                        )
+                                    )
+                                }
+                            return@async listOfUser
+                        }
 
-                    // Get user that is the same that userId.key
-                    val userDeferred = async(Dispatchers.IO) {
-                        val result = database.child(PATH).child("users")
-                            .child(usersId.key!!).get().await()
-                        listOfUser.add(
-                            User(
-                                usersId.key ?: "",
-                                result.getValue(String::class.java) ?: ""
-                            )
-                        )
-                        return@async listOfUser
-                    }
-                    // Get all messages
-                    val messagesDeferred = async(Dispatchers.IO) {
+                        // Get all messages
                         usersId.children.forEach {
                             it.getValue(MessageFirebase::class.java)?.let { ms ->
-                                listOfMessages.add(ms.copy(uid = usersId.key!!))
+                                listOfMessages.add(ms.copy(uid = key))
                             }
                         }
-                        return@async listOfMessages
-                    }
 
-                    launch {
-                        val message = messagesDeferred.await()
-                        val user = userDeferred.await()
-
-                        val messageList = message.map { msg ->
-                            Message(user.find { it.uid == msg.uid } ?: User(),
-                                msg.message,
-                                msg.date)
+                        launch {
+                            // Wait for list of users
+                            val users = userDeferred.await()
+                            // Map firebase message to message domain
+                            val messageList = listOfMessages.map { lm ->
+                                users.find { it.uid == lm.uid }?.let {
+                                    Message(
+                                        author = it,
+                                        lm.message,
+                                        lm.date
+                                    )
+                                } ?: Message(User(), "", 0)
+                            }
+                            // Try send messages
+                            this@callbackFlow.trySend(Response.Success(messageList))
                         }
-
-                        this@callbackFlow.trySend(Response.Success(messageList))
                     }
                 }
             }
