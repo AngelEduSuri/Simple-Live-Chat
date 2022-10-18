@@ -6,7 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.*
@@ -31,6 +31,7 @@ import com.aesuriagasalazar.simplelivechat.ui.elements.ChatButtonSend
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatItem
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatSignMessage
 import com.aesuriagasalazar.simplelivechat.ui.elements.ChatTextField
+import com.aesuriagasalazar.simplelivechat.utils.convertToTimeAgo
 import java.util.*
 
 @Composable
@@ -74,6 +75,7 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ShowUserName(
     modifier: Modifier = Modifier,
@@ -84,6 +86,8 @@ fun ShowUserName(
     onEditingDone: () -> Unit,
     onCancelEditing: () -> Unit
 ) {
+
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Box(
         modifier = Modifier
@@ -103,11 +107,17 @@ fun ShowUserName(
             horizontalArrangement = Arrangement.Center
         ) {
             if (isEditing) {
-                IconButton(onClick = onCancelEditing) {
+                IconButton(onClick = {
+                    onCancelEditing()
+                    keyboardController?.hide()
+                }) {
                     Icon(imageVector = Icons.Rounded.Close, contentDescription = null)
                 }
                 OutlinedTextField(value = userName, onValueChange = onEditUserName)
-                IconButton(onClick = onEditingDone) {
+                IconButton(onClick = {
+                    onEditingDone()
+                    keyboardController?.hide()
+                }) {
                     Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
                 }
             } else {
@@ -128,9 +138,6 @@ fun MessageList(
 ) {
 
     val state = rememberLazyListState()
-    val dates by remember(messages.size) {
-        mutableStateOf(messages.map { it.convertToDate() })
-    }
 
     LaunchedEffect(key1 = messages.size) {
         if (messages.isNotEmpty()) state.scrollToItem(index = messages.lastIndex)
@@ -143,11 +150,11 @@ fun MessageList(
         state = state,
     ) {
         if (messages.isNotEmpty()) {
-            itemsIndexed(messages) { index, item ->
+            items(messages) {
                 ChatItem(
-                    message = item,
-                    isUserMessage = userMessage == item.author.name,
-                    time = dates[index]
+                    message = it,
+                    isUserMessage = userMessage == it.author.name,
+                    time = convertToTimeAgo(it.timestamp)
                 )
             }
         } else {

@@ -38,7 +38,7 @@ class ChatViewModel @Inject constructor(private val chatRepository: ChatReposito
         chatRepository.getChat().collectResponse(
             onLoading = null,
             onSuccess = { listMessage ->
-                val sorted = listMessage.asSequence().sortedBy { it?.timestamp }.toList()
+                val sorted = listMessage.asSequence().sortedBy { it.timestamp }.toList()
                 _chatUiState.update {
                     it.copy(chats = sorted)
                 }
